@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ deal.name }} — CRM{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'deals:list' %}">Сделки</a></li>
+<li class="breadcrumb-item active">{{ deal.name|truncatechars:30 }}</li>
+{% endblock %}
+{% block content %}
+<div class="card kpi-card">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div>
+                <h4 class="mb-1 fw-bold">{{ deal.name }}</h4>
+                <span class="badge bg-primary rounded-pill">{{ deal.get_stage_display }}</span>
+            </div>
+            <a href="{% url 'deals:edit' deal.pk %}" class="ms-auto btn btn-outline-secondary btn-sm">
+                <i class="bi bi-pencil me-1"></i>Редактировать
+            </a>
+        </div>
+        <dl class="row">
+            <dt class="col-sm-3 text-muted small">Клиент</dt>
+            <dd class="col-sm-9"><a href="{% url 'clients:detail' deal.client.pk %}">{{ deal.client.name }}</a></dd>
+            <dt class="col-sm-3 text-muted small">Менеджер</dt>
+            <dd class="col-sm-9">{{ deal.manager|default:"—" }}</dd>
+            <dt class="col-sm-3 text-muted small">Сумма</dt>
+            <dd class="col-sm-9 fw-semibold fs-5">{{ deal.amount|floatformat:0 }} руб.</dd>
+            <dt class="col-sm-3 text-muted small">Вероятность</dt>
+            <dd class="col-sm-9">
+                <div class="d-flex align-items-center gap-2" style="max-width:200px">
+                    <div class="progress flex-grow-1" style="height:8px">
+                        <div class="progress-bar bg-success" style="width:{{ deal.probability }}%"></div>
+                    </div>
+                    {{ deal.probability }}%
+                </div>
+            </dd>
+            <dt class="col-sm-3 text-muted small">Взвешенная сумма</dt>
+            <dd class="col-sm-9">{{ deal.weighted_amount|floatformat:0 }} руб.</dd>
+            <dt class="col-sm-3 text-muted small">Дата закрытия</dt>
+            <dd class="col-sm-9">{{ deal.expected_close_date|date:"d.m.Y"|default:"—" }}</dd>
+            {% if deal.description %}
+            <dt class="col-sm-3 text-muted small">Описание</dt>
+            <dd class="col-sm-9">{{ deal.description|linebreaksbr }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+{% endblock %}

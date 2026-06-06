@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Заявки — CRM{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Заявки</li>{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-ticket-detailed-fill me-2 text-warning"></i>Заявки</h4>
+    <div class="ms-auto d-flex gap-2">
+        <a href="{% url 'requests_app:kanban' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-kanban me-1"></i>Kanban
+        </a>
+        <a href="{% url 'requests_app:create' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Новая заявка
+        </a>
+    </div>
+</div>
+<div class="card kpi-card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <input type="text" name="search" value="{{ request.GET.search }}"
+                       class="form-control form-control-sm" placeholder="Тема, клиент…">
+            </div>
+            <div class="col-6 col-md-2">
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">Все статусы</option>
+                    <option value="new" {% if request.GET.status == 'new' %}selected{% endif %}>Новая</option>
+                    <option value="in_progress" {% if request.GET.status == 'in_progress' %}selected{% endif %}>В работе</option>
+                    <option value="waiting" {% if request.GET.status == 'waiting' %}selected{% endif %}>Ожидает</option>
+                    <option value="closed" {% if request.GET.status == 'closed' %}selected{% endif %}>Закрыта</option>
+                    <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>Отклонена</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <select name="priority" class="form-select form-select-sm">
+                    <option value="">Все приоритеты</option>
+                    <option value="low" {% if request.GET.priority == 'low' %}selected{% endif %}>Низкий</option>
+                    <option value="medium" {% if request.GET.priority == 'medium' %}selected{% endif %}>Средний</option>
+                    <option value="high" {% if request.GET.priority == 'high' %}selected{% endif %}>Высокий</option>
+                    <option value="critical" {% if request.GET.priority == 'critical' %}selected{% endif %}>Критический</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <button type="submit" class="btn btn-sm btn-primary w-100">Найти</button>
+            </div>
+            <div class="col-6 col-md-2">
+                <a href="{% url 'requests_app:list' %}" class="btn btn-sm btn-outline-secondary w-100">Сбросить</a>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="card kpi-card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-crm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-3">#</th>
+                        <th>Клиент</th>
+                        <th>Тема</th>
+                        <th>Тип</th>
+                        <th>Приоритет</th>
+                        <th>Статус</th>
+                        <th>Ответственный</th>
+                        <th class="pe-3">Срок</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for req in requests %}
+                <tr class="cursor-pointer" onclick="window.location='{% url 'requests_app:detail' req.pk %}'">
+                    <td class="ps-3 text-muted small">{{ req.pk }}</td>
+                    <td class="small fw-medium">{{ req.client.name|truncatechars:20 }}</td>
+                    <td>{{ req.subject|truncatechars:35 }}</td>
+                    <td class="small text-muted">{{ req.get_request_type_display }}</td>
+                    <td>
+                        <span class="badge priority-{{ req.priority }} rounded-pill">
+                            {{ req.get_priority_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge rounded-pill
+                            {% if req.status == 'new' %}bg-primary
+                            {% elif req.status == 'in_progress' %}bg-warning text-dark
+                            {% elif req.status == 'waiting' %}bg-info
+                            {% elif req.status == 'closed' %}bg-success
+                            {% else %}bg-secondary{% endif %}">
+                            {{ req.get_status_display }}
+                        </span>
+                    </td>
+                    <td class="small text-muted">{{ req.manager|default:"—" }}</td>
+                    <td class="pe-3 small {% if req.is_overdue %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+                        {% if req.deadline %}{{ req.deadline|date:"d.m.Y" }}{% else %}—{% endif %}
+                        {% if req.is_overdue %}<i class="bi bi-exclamation-triangle-fill ms-1"></i>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-5">
+                    <i class="bi bi-inbox fs-2 d-block mb-2"></i>Заявок нет
+                </td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if is_paginated %}
+    <div class="card-footer bg-transparent d-flex align-items-center">
+        <small class="text-muted">Показано {{ page_obj.start_index }}–{{ page_obj.end_index }} из {{ paginator.count }}</small>
+        <nav class="ms-auto">
+            <ul class="pagination pagination-sm mb-0 gap-1">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link rounded" href="?page={{ page_obj.previous_page_number }}"><i class="bi bi-chevron-left"></i></a></li>
+                {% endif %}
+                {% for num in paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link rounded" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link rounded" href="?page={{ page_obj.next_page_number }}"><i class="bi bi-chevron-right"></i></a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

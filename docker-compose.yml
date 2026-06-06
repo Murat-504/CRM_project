@@ -1,0 +1,95 @@
+version: "3.11"
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: crm_db
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm_user -d crm_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  web:
+    build: .
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn crm_project.wsgi:application
+               --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+    volumes:
+      - .:/app
+      - media_files:/app/media
+      - static_files:/app/staticfiles
+    environment:
+      DJANGO_SETTINGS_MODULE: crm_project.settings.production
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      DB_HOST: db
+      DB_NAME: crm_db
+      DB_USER: crm_user
+      DB_PASSWORD: ${DB_PASSWORD:-supersecret}
+      REDIS_URL: redis://redis:6379/0
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  celery_worker:
+    build: .
+    restart: unless-stopped
+    command: celery -A crm_project worker -l info -c 4
+    volumes:
+      - .:/app
+    environment:
+      DJANGO_SETTINGS_MODULE: crm_project.settings.production
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      DB_HOST: db
+      DB_NAME: crm_db
+      DB_USER: crm_user
+      DB_PASSWORD: ${DB_PASSWORD:-supersecret}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+
+  celery_beat:
+    build: .
+    restart: unless-stopped
+    command: celery -A crm_project beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    environment:
+      DJANGO_SETTINGS_MODULE: crm_project.settings.production
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      DB_HOST: db
+      DB_NAME: crm_db
+      DB_USER: crm_user
+      DB_PASSWORD: ${DB_PASSWORD:-supersecret}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_files:
+  static_files:

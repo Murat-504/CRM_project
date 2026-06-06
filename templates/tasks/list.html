@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Задачи — CRM{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Задачи</li>{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-check2-square me-2 text-success"></i>Задачи</h4>
+</div>
+<div class="card kpi-card">
+    <div class="card-body p-0">
+        <table class="table table-crm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th class="ps-3">Задача</th>
+                    <th>Клиент</th>
+                    <th>Статус</th>
+                    <th>Приоритет</th>
+                    <th class="pe-3">Срок</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for task in tasks %}
+            <tr>
+                <td class="ps-3 fw-medium {% if task.status == 'done' %}text-decoration-line-through text-muted{% endif %}">
+                    {{ task.title }}
+                </td>
+                <td class="small text-muted">{{ task.client|default:"—" }}</td>
+                <td>
+                    <span class="badge rounded-pill
+                        {% if task.status == 'done' %}bg-success
+                        {% elif task.status == 'in_progress' %}bg-warning text-dark
+                        {% elif task.status == 'cancelled' %}bg-secondary
+                        {% else %}bg-primary{% endif %}">
+                        {{ task.get_status_display }}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge priority-{{ task.priority }} rounded-pill">
+                        {{ task.get_priority_display }}
+                    </span>
+                </td>
+                <td class="pe-3 small {% if task.is_overdue %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+                    {% if task.due_date %}{{ task.due_date|date:"d.m.Y H:i" }}{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-5">
+                <i class="bi bi-check-all fs-2 d-block mb-2"></i>Задач нет
+            </td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

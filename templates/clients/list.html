@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Клиенты — CRM{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Клиенты</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-people-fill me-2 text-primary"></i>Клиенты</h4>
+    <a href="{% url 'clients:create' %}" class="ms-auto btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Добавить клиента
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card kpi-card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label small mb-1">Поиск</label>
+                <input type="text" name="search" value="{{ request.GET.search }}"
+                       class="form-control form-control-sm" placeholder="Имя, телефон, e-mail…">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1">Тип</label>
+                <select name="client_type" class="form-select form-select-sm">
+                    <option value="">Все</option>
+                    <option value="individual" {% if request.GET.client_type == 'individual' %}selected{% endif %}>Физ. лицо</option>
+                    <option value="company" {% if request.GET.client_type == 'company' %}selected{% endif %}>Юр. лицо</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1">Категория</label>
+                <select name="category" class="form-select form-select-sm">
+                    <option value="">Все</option>
+                    <option value="potential" {% if request.GET.category == 'potential' %}selected{% endif %}>Потенциальный</option>
+                    <option value="active" {% if request.GET.category == 'active' %}selected{% endif %}>Активный</option>
+                    <option value="vip" {% if request.GET.category == 'vip' %}selected{% endif %}>VIP</option>
+                    <option value="inactive" {% if request.GET.category == 'inactive' %}selected{% endif %}>Неактивный</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <button type="submit" class="btn btn-sm btn-primary w-100">
+                    <i class="bi bi-search me-1"></i>Найти
+                </button>
+            </div>
+            <div class="col-12 col-md-2">
+                <a href="{% url 'clients:list' %}" class="btn btn-sm btn-outline-secondary w-100">
+                    <i class="bi bi-x-circle me-1"></i>Сбросить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card kpi-card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-crm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-3">Клиент</th>
+                        <th>Тип</th>
+                        <th>Категория</th>
+                        <th>Телефон</th>
+                        <th>Менеджер</th>
+                        <th class="text-center">Заявки</th>
+                        <th class="text-center">Сделки</th>
+                        <th class="pe-3">Создан</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for client in clients %}
+                <tr class="cursor-pointer" onclick="window.location='{% url 'clients:detail' client.pk %}'">
+                    <td class="ps-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                 style="width:34px;height:34px;background:#ede9fe;color:#7c3aed;font-weight:700;font-size:.85rem">
+                                {{ client.name|first|upper }}
+                            </div>
+                            <div>
+                                <div class="fw-medium">{{ client.name }}</div>
+                                {% if client.email %}
+                                <div class="small text-muted">{{ client.email }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge {% if client.client_type == 'company' %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill">
+                            {{ client.get_client_type_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge rounded-pill
+                            {% if client.category == 'vip' %}bg-warning text-dark
+                            {% elif client.category == 'active' %}bg-success
+                            {% elif client.category == 'potential' %}bg-info
+                            {% else %}bg-secondary{% endif %}">
+                            {{ client.get_category_display }}
+                        </span>
+                    </td>
+                    <td class="small">{{ client.phone|default:"—" }}</td>
+                    <td class="small">{{ client.manager|default:"—" }}</td>
+                    <td class="text-center">
+                        {% if client.open_requests_count %}
+                        <span class="badge bg-danger rounded-pill">{{ client.open_requests_count }}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if client.active_deals_count %}
+                        <span class="badge bg-success rounded-pill">{{ client.active_deals_count }}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="pe-3 small text-muted">{{ client.created_at|date:"d.m.Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-5">
+                        <i class="bi bi-people fs-2 d-block mb-2"></i>
+                        Клиенты не найдены
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="card-footer bg-transparent d-flex align-items-center">
+        <small class="text-muted">
+            Показано {{ page_obj.start_index }}–{{ page_obj.end_index }} из {{ paginator.count }}
+        </small>
+        <nav class="ms-auto">
+            <ul class="pagination pagination-sm mb-0 gap-1">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link rounded" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                {% for num in paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link rounded" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link rounded" href="?page={{ page_obj.next_page_number }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

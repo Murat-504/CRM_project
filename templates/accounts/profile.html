@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Профиль — CRM{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Профиль</li>{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-7">
+        <div class="card kpi-card">
+            <div class="card-header bg-transparent fw-semibold border-0 pt-3 pb-0">
+                <i class="bi bi-person-circle me-1 text-primary"></i>Мой профиль
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                        {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    {% if request.user.avatar %}
+                    <img src="{{ request.user.avatar.url }}" class="rounded-circle" width="72" height="72" alt="">
+                    {% else %}
+                    <div class="rounded-circle d-flex align-items-center justify-content-center"
+                         style="width:72px;height:72px;background:#ede9fe;color:#7c3aed;font-size:1.8rem;font-weight:700">
+                        {{ request.user.first_name|first|upper|default:request.user.username|first|upper }}
+                    </div>
+                    {% endif %}
+                    <div>
+                        <div class="fw-bold fs-5">{{ request.user.get_full_name|default:request.user.username }}</div>
+                        <div class="text-muted small">{{ request.user.get_role_display }} · {{ request.user.email }}</div>
+                    </div>
+                </div>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {% for field in form %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                        <div class="text-danger small mt-1">{{ field.errors }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i>Сохранить изменения
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

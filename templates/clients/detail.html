@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }} — CRM{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'clients:list' %}">Клиенты</a></li>
+<li class="breadcrumb-item active">{{ client.name|truncatechars:30 }}</li>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="card kpi-card mb-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                 style="width:56px;height:56px;background:#ede9fe;color:#7c3aed;font-size:1.4rem;font-weight:700">
+                {{ client.name|first|upper }}
+            </div>
+            <div>
+                <h4 class="mb-1 fw-bold">{{ client.name }}</h4>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge {% if client.client_type == 'company' %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill">
+                        {{ client.get_client_type_display }}
+                    </span>
+                    <span class="badge rounded-pill
+                        {% if client.category == 'vip' %}bg-warning text-dark
+                        {% elif client.category == 'active' %}bg-success
+                        {% elif client.category == 'potential' %}bg-info
+                        {% else %}bg-secondary{% endif %}">
+                        {{ client.get_category_display }}
+                    </span>
+                    {% if not client.is_active %}
+                    <span class="badge bg-danger rounded-pill">Неактивен</span>
+                    {% endif %}
+                    {% if client.inn %}
+                    <span class="text-muted small">ИНН: {{ client.inn }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="ms-auto d-flex gap-2">
+                <a href="{% url 'clients:edit' client.pk %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-pencil me-1"></i>Редактировать
+                </a>
+                <a href="{% url 'requests_app:create' %}?client={{ client.pk }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i>Новая заявка
+                </a>
+            </div>
+        </div>
+
+        <!-- Quick info row -->
+        <div class="row g-2 mt-3">
+            {% if client.phone %}
+            <div class="col-auto">
+                <a href="tel:{{ client.phone }}" class="text-decoration-none text-dark small">
+                    <i class="bi bi-telephone-fill text-success me-1"></i>{{ client.phone }}
+                </a>
+            </div>
+            {% endif %}
+            {% if client.email %}
+            <div class="col-auto">
+                <a href="mailto:{{ client.email }}" class="text-decoration-none text-dark small">
+                    <i class="bi bi-envelope-fill text-primary me-1"></i>{{ client.email }}
+                </a>
+            </div>
+            {% endif %}
+            {% if client.address %}
+            <div class="col-auto small text-muted">
+                <i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ client.address }}
+            </div>
+            {% endif %}
+            {% if client.manager %}
+            <div class="col-auto small text-muted">
+                <i class="bi bi-person-badge-fill text-info me-1"></i>{{ client.manager }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" id="clientTabs">
+    <li class="nav-item">
+        <a class="nav-link active" data-bs-toggle="tab" href="#tab-info">
+            <i class="bi bi-info-circle me-1"></i>Информация
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tab-requests">
+            <i class="bi bi-ticket-detailed me-1"></i>Заявки
+            <span class="badge bg-danger ms-1" id="badge-requests">…</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tab-deals">
+            <i class="bi bi-graph-up-arrow me-1"></i>Сделки
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tab-timeline">
+            <i class="bi bi-clock-history me-1"></i>История
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tab-docs">
+            <i class="bi bi-paperclip me-1"></i>Документы
+        </a>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- Info -->
+    <div class="tab-pane fade show active" id="tab-info">
+        <div class="row g-3">
+            <div class="col-12 col-lg-7">
+                <div class="card kpi-card">
+                    <div class="card-header bg-transparent fw-semibold border-0 pt-3 pb-0">Реквизиты</div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4 text-muted small">Наименование</dt>
+                            <dd class="col-sm-8">{{ client.name }}</dd>
+                            <dt class="col-sm-4 text-muted small">Тип</dt>
+                            <dd class="col-sm-8">{{ client.get_client_type_display }}</dd>
+                            {% if client.inn %}
+                            <dt class="col-sm-4 text-muted small">ИНН</dt>
+                            <dd class="col-sm-8">{{ client.inn }}</dd>
+                            {% endif %}
+                            <dt class="col-sm-4 text-muted small">Телефон</dt>
+                            <dd class="col-sm-8">{{ client.phone|default:"—" }}</dd>
+                            <dt class="col-sm-4 text-muted small">E-mail</dt>
+                            <dd class="col-sm-8">{{ client.email|default:"—" }}</dd>
+                            <dt class="col-sm-4 text-muted small">Адрес</dt>
+                            <dd class="col-sm-8">{{ client.address|default:"—" }}</dd>
+                            <dt class="col-sm-4 text-muted small">Менеджер</dt>
+                            <dd class="col-sm-8">{{ client.manager|default:"—" }}</dd>
+                            <dt class="col-sm-4 text-muted small">Создан</dt>
+                            <dd class="col-sm-8">{{ client.created_at|date:"d.m.Y H:i" }}</dd>
+                            {% if client.notes %}
+                            <dt class="col-sm-4 text-muted small">Заметки</dt>
+                            <dd class="col-sm-8">{{ client.notes|linebreaksbr }}</dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-5">
+                <!-- Contacts -->
+                <div class="card kpi-card mb-3">
+                    <div class="card-header bg-transparent d-flex align-items-center border-0 pt-3 pb-0">
+                        <span class="fw-semibold">Контактные лица</span>
+                        <button class="ms-auto btn btn-link btn-sm py-0" onclick="addContact()">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="contacts-list">
+                            {% for contact in client.contacts.all %}
+                            <div class="d-flex align-items-start gap-2 mb-3">
+                                <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0"
+                                     style="width:36px;height:36px">
+                                    <i class="bi bi-person text-primary"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-medium">
+                                        {{ contact.full_name }}
+                                        {% if contact.is_primary %}
+                                        <span class="badge bg-primary rounded-pill ms-1" style="font-size:.65rem">Основной</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if contact.position %}
+                                    <div class="small text-muted">{{ contact.position }}</div>
+                                    {% endif %}
+                                    <div class="small">
+                                        {% if contact.phone %}<a href="tel:{{ contact.phone }}">{{ contact.phone }}</a>{% endif %}
+                                        {% if contact.email %} · <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted small mb-0">Контактных лиц нет</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <!-- Add comment -->
+                <div class="card kpi-card">
+                    <div class="card-header bg-transparent fw-semibold border-0 pt-3 pb-0">
+                        Добавить комментарий
+                    </div>
+                    <div class="card-body">
+                        <form id="commentForm">
+                            <div class="mb-2">
+                                <select name="interaction_type" class="form-select form-select-sm mb-2">
+                                    <option value="note">Заметка</option>
+                                    <option value="call">Звонок</option>
+                                    <option value="meeting">Встреча</option>
+                                    <option value="email">E-mail</option>
+                                </select>
+                                <textarea name="text" class="form-control form-control-sm"
+                                          rows="3" placeholder="Текст…" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-primary w-100">
+                                <i class="bi bi-send me-1"></i>Сохранить
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Requests Tab (loaded via API) -->
+    <div class="tab-pane fade" id="tab-requests">
+        <div id="requests-container">
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        </div>
+    </div>
+
+    <!-- Deals Tab -->
+    <div class="tab-pane fade" id="tab-deals">
+        <div id="deals-container">
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="tab-pane fade" id="tab-timeline">
+        <div id="timeline-container">
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        </div>
+    </div>
+
+    <!-- Documents -->
+    <div class="tab-pane fade" id="tab-docs">
+        <div id="docs-container">
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CLIENT_ID = '{{ client.pk }}';
+let tabsLoaded = {};
+
+// ── Загружаем вкладки при переключении ────────────────────────────────────
+document.querySelectorAll('#clientTabs .nav-link').forEach(tab => {
+    tab.addEventListener('shown.bs.tab', function (e) {
+        const target = e.target.getAttribute('href');
+        if (!tabsLoaded[target]) {
+            tabsLoaded[target] = true;
+            loadTab(target);
+        }
+    });
+});
+
+async function loadTab(target) {
+    if (target === '#tab-requests') await loadRequests();
+    else if (target === '#tab-deals') await loadDeals();
+    else if (target === '#tab-timeline') await loadTimeline();
+    else if (target === '#tab-docs') await loadDocs();
+}
+
+// ── Requests ──────────────────────────────────────────────────────────────
+async function loadRequests() {
+    const res = await CRM.apiFetch(`/api/clients/${CLIENT_ID}/requests/`);
+    const data = await res.json();
+    const badge = document.getElementById('badge-requests');
+    const open = data.filter(r => !['closed','rejected'].includes(r.status));
+    badge.textContent = open.length || 0;
+
+    const html = data.length ? `
+        <div class="card kpi-card">
+            <div class="card-body p-0">
+                <table class="table table-crm table-hover mb-0">
+                    <thead><tr>
+                        <th class="ps-3">#</th><th>Тема</th><th>Приоритет</th>
+                        <th>Статус</th><th class="pe-3">Срок</th>
+                    </tr></thead>
+                    <tbody>
+                    ${data.map(r => `
+                        <tr onclick="window.location='/requests/${r.id}/'" class="cursor-pointer">
+                            <td class="ps-3 text-muted small">${r.id.toString().slice(-6)}</td>
+                            <td>${r.subject}</td>
+                            <td><span class="badge priority-${r.priority} rounded-pill">${r.priority_display}</span></td>
+                            <td><span class="badge bg-secondary rounded-pill">${r.status_display}</span></td>
+                            <td class="pe-3 small ${r.is_overdue ? 'text-danger fw-semibold' : 'text-muted'}">
+                                ${r.deadline ? r.deadline.slice(0,10) : '—'}
+                                ${r.is_overdue ? '<i class="bi bi-exclamation-triangle-fill ms-1"></i>' : ''}
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>` : '<p class="text-muted text-center py-4">Заявок нет</p>';
+    document.getElementById('requests-container').innerHTML = html;
+}
+
+// ── Deals ─────────────────────────────────────────────────────────────────
+async function loadDeals() {
+    const res = await CRM.apiFetch(`/api/clients/${CLIENT_ID}/deals/`);
+    const data = await res.json();
+    const html = data.length ? `
+        <div class="card kpi-card">
+            <div class="card-body p-0">
+                <table class="table table-crm table-hover mb-0">
+                    <thead><tr>
+                        <th class="ps-3">Сделка</th><th>Этап</th>
+                        <th class="text-end">Сумма</th><th class="pe-3">Дата закрытия</th>
+                    </tr></thead>
+                    <tbody>
+                    ${data.map(d => `
+                        <tr onclick="window.location='/deals/${d.id}/'" class="cursor-pointer">
+                            <td class="ps-3 fw-medium">${d.name}</td>
+                            <td><span class="badge bg-primary rounded-pill">${d.stage_display}</span></td>
+                            <td class="text-end fw-semibold">${Number(d.amount).toLocaleString('ru')} руб.</td>
+                            <td class="pe-3 small text-muted">${d.expected_close_date || '—'}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>` : '<p class="text-muted text-center py-4">Сделок нет</p>';
+    document.getElementById('deals-container').innerHTML = html;
+}
+
+// ── Timeline ──────────────────────────────────────────────────────────────
+async function loadTimeline() {
+    const res = await CRM.apiFetch(`/api/clients/${CLIENT_ID}/timeline/`);
+    const events = await res.json();
+    const colorMap = { info: '#6366f1', warning: '#f59e0b', success: '#22c55e', danger: '#ef4444' };
+    const html = events.length ? `
+        <div class="timeline ps-2">
+            ${events.map(ev => `
+                <div class="timeline-item">
+                    <div class="timeline-icon" style="background:${colorMap[ev.color]}22;color:${colorMap[ev.color]}">
+                        <i class="bi bi-${ev.icon}"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="fw-medium">${ev.title}</div>
+                        <div class="small text-muted">${ev.description}</div>
+                        <div class="d-flex gap-2 mt-1" style="font-size:.72rem;color:#9ca3af">
+                            <span><i class="bi bi-person me-1"></i>${ev.author}</span>
+                            <span><i class="bi bi-clock me-1"></i>${new Date(ev.date).toLocaleString('ru')}</span>
+                        </div>
+                    </div>
+                </div>`).join('')}
+        </div>` : '<p class="text-muted text-center py-4">История пуста</p>';
+    document.getElementById('timeline-container').innerHTML = html;
+}
+
+// ── Documents ─────────────────────────────────────────────────────────────
+async function loadDocs() {
+    const res = await CRM.apiFetch(`/api/clients/${CLIENT_ID}/documents/`);
+    const docs = await res.json();
+    const html = docs.length ? `
+        <div class="card kpi-card">
+            <div class="card-body p-0">
+                <table class="table table-crm table-hover mb-0">
+                    <thead><tr>
+                        <th class="ps-3">Название</th><th>Тип</th>
+                        <th>Загрузил</th><th class="pe-3">Дата</th>
+                    </tr></thead>
+                    <tbody>
+                    ${docs.map(d => `
+                        <tr>
+                            <td class="ps-3">
+                                <a href="${d.file_url}" target="_blank" class="text-decoration-none">
+                                    <i class="bi bi-file-earmark me-1"></i>${d.title}
+                                </a>
+                            </td>
+                            <td><span class="badge bg-secondary rounded-pill">${d.doc_type_display}</span></td>
+                            <td class="small">${d.author?.full_name || '—'}</td>
+                            <td class="pe-3 small text-muted">${d.uploaded_at?.slice(0,10) || '—'}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>` : '<p class="text-muted text-center py-4">Документов нет</p>';
+    document.getElementById('docs-container').innerHTML = html;
+}
+
+// ── Add Comment ───────────────────────────────────────────────────────────
+document.getElementById('commentForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const form = new FormData(this);
+    await CRM.apiFetch(`/api/requests/0/comments/`, {
+        method: 'POST',
+        body: JSON.stringify({ text: form.get('text'), interaction_type: form.get('interaction_type') })
+    });
+    CRM.showToast('Комментарий добавлен');
+    this.reset();
+    tabsLoaded['#tab-timeline'] = false;
+});
+</script>
+{% endblock %}

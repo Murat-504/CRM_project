@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Заявки — Kanban — CRM{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'requests_app:list' %}">Заявки</a></li>
+<li class="breadcrumb-item active">Kanban</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.kanban-board { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem; min-height: 70vh; }
+.kanban-board::-webkit-scrollbar { height: 6px; }
+.kanban-board::-webkit-scrollbar-track { background: #f1f5f9; }
+.kanban-board::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-kanban me-2 text-primary"></i>Kanban — Заявки</h4>
+    <div class="ms-auto d-flex gap-2">
+        <a href="{% url 'requests_app:list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-table me-1"></i>Список
+        </a>
+        <a href="{% url 'requests_app:create' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Новая заявка
+        </a>
+    </div>
+</div>
+
+<div class="kanban-board" id="kanbanBoard">
+    <div class="text-center py-5 w-100">
+        <div class="spinner-border text-primary"></div>
+        <div class="mt-2 text-muted">Загружаем доску…</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const STATUS_COLORS = {
+    new: 'primary', in_progress: 'warning', waiting: 'info',
+    closed: 'success', rejected: 'secondary'
+};
+
+let kanbanData = {};
+let dragSrcId = null;
+
+async function loadKanban() {
+    const res = await CRM.apiFetch('/api/requests/kanban/');
+    kanbanData = await res.json();
+    renderBoard();
+}
+
+function renderBoard() {
+    const board = document.getElementById('kanbanBoard');
+    board.innerHTML = '';
+
+    Object.entries(kanbanData).forEach(([statusKey, col]) => {
+        const colEl = document.createElement('div');
+        colEl.className = 'kanban-col';
+        colEl.dataset.status = statusKey;
+        colEl.innerHTML = `
+            <div class="kanban-col-header d-flex align-items-center">
+                <span class="badge bg-${STATUS_COLORS[statusKey]} me-2">${col.items.length}</span>
+                ${col.label}
+            </div>
+            <div class="kanban-items" id="col-${statusKey}" 
+                 ondragover="onDragOver(event)"
+                 ondrop="onDrop(event, '${statusKey}')"
+                 ondragleave="onDragLeave(event)">
+                ${col.items.map(item => renderCard(item)).join('')}
+            </div>`;
+        board.appendChild(colEl);
+    });
+}
+
+function renderCard(item) {
+    const overdue = item.is_overdue
+        ? '<span class="badge bg-danger rounded-pill ms-1" style="font-size:.6rem">Просрочено</span>' : '';
+    return `
+        <div class="kanban-card"
+             draggable="true"
+             data-id="${item.id}"
+             ondragstart="onDragStart(event, '${item.id}')"
+             ondragend="onDragEnd(event)">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+                <span class="badge priority-${item.priority} rounded-pill" style="font-size:.68rem">
+                    ${item.priority_display}
+                </span>
+                <span class="text-muted" style="font-size:.72rem">#${item.id.slice(-6)}</span>
+            </div>
+            <div class="fw-medium mb-1" style="font-size:.88rem">${item.subject}</div>
+            <div class="small text-muted mb-2 text-truncate">
+                <i class="bi bi-person me-1"></i>${item.client_name}${overdue}
+            </div>
+            <div class="d-flex align-items-center justify-content-between">
+                <span class="small text-muted">
+                    ${item.manager ? '<i class="bi bi-person-badge me-1"></i>' + item.manager.full_name : ''}
+                </span>
+                ${item.deadline ? `<span class="small ${item.is_overdue ? 'text-danger fw-semibold' : 'text-muted'}">
+                    <i class="bi bi-calendar3 me-1"></i>${item.deadline.slice(0,10)}</span>` : ''}
+            </div>
+        </div>`;
+}
+
+// ── Drag-and-drop ─────────────────────────────────────────────────────────
+function onDragStart(e, id) {
+    dragSrcId = id;
+    e.currentTarget.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+function onDragEnd(e) { e.currentTarget.classList.remove('dragging'); }
+function onDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function onDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+
+async function onDrop(e, newStatus) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    if (!dragSrcId) return;
+
+    const res = await CRM.apiFetch(`/api/requests/${dragSrcId}/status/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+    });
+
+    if (res.ok) {
+        CRM.showToast('Статус обновлён');
+        await loadKanban();
+    } else {
+        CRM.showToast('Ошибка обновления', 'danger');
+    }
+    dragSrcId = null;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+loadKanban();
+</script>
+{% endblock %}

@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Отчёты — CRM{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Отчёты</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Отчёты и аналитика</h4>
+    <div class="ms-auto d-flex gap-2 align-items-end">
+        <div>
+            <label class="form-label small mb-1">Период с</label>
+            <input type="date" id="dateStart" class="form-control form-control-sm" value="">
+        </div>
+        <div>
+            <label class="form-label small mb-1">по</label>
+            <input type="date" id="dateEnd" class="form-control form-control-sm" value="">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="loadReports()">
+            <i class="bi bi-funnel me-1"></i>Применить
+        </button>
+    </div>
+</div>
+
+<!-- Summary cards (populated via JS) -->
+<div class="row g-3 mb-4" id="summaryCards">
+    <div class="col-6 col-md-3">
+        <div class="card kpi-card text-center p-3">
+            <div class="spinner-border spinner-border-sm text-primary mx-auto"></div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card kpi-card text-center p-3">
+            <div class="spinner-border spinner-border-sm text-primary mx-auto"></div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card kpi-card text-center p-3">
+            <div class="spinner-border spinner-border-sm text-primary mx-auto"></div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card kpi-card text-center p-3">
+            <div class="spinner-border spinner-border-sm text-primary mx-auto"></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+
+    <!-- Sales by month chart -->
+    <div class="col-12 col-lg-8">
+        <div class="card kpi-card">
+            <div class="card-header bg-transparent fw-semibold border-0 pt-3 pb-0">
+                <i class="bi bi-graph-up me-1 text-success"></i>Продажи по месяцам
+            </div>
+            <div class="card-body">
+                <canvas id="salesChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top managers table -->
+    <div class="col-12 col-lg-4">
+        <div class="card kpi-card h-100">
+            <div class="card-header bg-transparent fw-semibold border-0 pt-3 pb-0">
+                <i class="bi bi-trophy me-1 text-warning"></i>Топ менеджеров
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-crm mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-3">#</th>
+                            <th>Менеджер</th>
+                            <th class="text-center">Сделок</th>
+                            <th class="pe-3 text-end">Сумма</th>
+                        </tr>
+                    </thead>
+                    <tbody id="managersTable">
+                        <tr><td colspan="4" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary"></div>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- New clients chart -->
+    <div class="col-12">
+        <div class="card kpi-card">
+            <div class="card-header bg-transparent fw-semibold border-0 pt-3 pb-0">
+                <i class="bi bi-people me-1 text-info"></i>Новые клиенты (последние 30 дней)
+            </div>
+            <div class="card-body">
+                <canvas id="clientsChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let salesChartInstance = null;
+let clientsChartInstance = null;
+
+// ── Defaults: текущий месяц ────────────────────────────────────────────────
+const now = new Date();
+const firstDay = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+document.getElementById('dateStart').value = firstDay.toISOString().slice(0,10);
+document.getElementById('dateEnd').value = now.toISOString().slice(0,10);
+
+async function loadReports() {
+    const start = document.getElementById('dateStart').value;
+    const end = document.getElementById('dateEnd').value;
+
+    const [salesRes, clientsRes] = await Promise.all([
+        CRM.apiFetch(`/api/reports/sales/?start=${start}&end=${end}`),
+        CRM.apiFetch(`/api/reports/clients_activity/`),
+    ]);
+    const salesData = await salesRes.json();
+    const clientsData = await clientsRes.json();
+
+    renderSummary(salesData.totals);
+    renderSalesChart(salesData.by_month);
+    renderManagersTable(salesData.by_manager);
+    renderClientsChart(clientsData.new_clients_by_day);
+}
+
+function renderSummary(totals) {
+    const won = totals?.count || 0;
+    const amount = totals?.total || 0;
+    document.getElementById('summaryCards').innerHTML = `
+        <div class="col-6 col-md-3">
+            <div class="card kpi-card text-center p-3">
+                <div class="kpi-value text-success">${won}</div>
+                <div class="kpi-label">Закрыто сделок</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card kpi-card text-center p-3">
+                <div class="kpi-value">${Number(amount).toLocaleString('ru')}</div>
+                <div class="kpi-label">Выручка, руб.</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card kpi-card text-center p-3">
+                <div class="kpi-value text-primary">${won > 0 ? Math.round(amount / won).toLocaleString('ru') : 0}</div>
+                <div class="kpi-label">Средний чек, руб.</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card kpi-card text-center p-3">
+                <div class="kpi-value text-warning">${won}</div>
+                <div class="kpi-label">Конверсия (WON)</div>
+            </div>
+        </div>`;
+}
+
+function renderSalesChart(data) {
+    const labels = data.map(d => {
+        const [y, m] = d.month.slice(0,7).split('-');
+        return `${m}.${y}`;
+    });
+    const amounts = data.map(d => Number(d.total) || 0);
+    const counts = data.map(d => d.count || 0);
+
+    if (salesChartInstance) salesChartInstance.destroy();
+    salesChartInstance = new Chart(document.getElementById('salesChart'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Выручка, руб.', data: amounts, backgroundColor: 'rgba(99,102,241,.7)',
+                  borderRadius: 6, yAxisID: 'y' },
+                { label: 'Кол-во сделок', data: counts, type: 'line',
+                  borderColor: '#f59e0b', backgroundColor: 'transparent',
+                  tension: .4, pointBackgroundColor: '#f59e0b', yAxisID: 'y1' }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                y: { position: 'left', beginAtZero: true },
+                y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } }
+            }
+        }
+    });
+}
+
+function renderManagersTable(data) {
+    const rows = data.slice(0, 10).map((m, i) => `
+        <tr>
+            <td class="ps-3 fw-bold text-muted">${i + 1}</td>
+            <td>${m.manager__last_name || ''} ${m.manager__first_name || ''}</td>
+            <td class="text-center">${m.count}</td>
+            <td class="pe-3 text-end fw-semibold">${Number(m.total).toLocaleString('ru')}</td>
+        </tr>`).join('');
+    document.getElementById('managersTable').innerHTML = rows || '<tr><td colspan="4" class="text-center text-muted py-3">Нет данных</td></tr>';
+}
+
+function renderClientsChart(data) {
+    const labels = data.map(d => d.day?.slice(0,10) || '');
+    const counts = data.map(d => d.count || 0);
+
+    if (clientsChartInstance) clientsChartInstance.destroy();
+    clientsChartInstance = new Chart(document.getElementById('clientsChart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Новых клиентов',
+                data: counts, fill: true,
+                backgroundColor: 'rgba(34,197,94,.1)',
+                borderColor: '#22c55e', borderWidth: 2,
+                tension: .4, pointBackgroundColor: '#22c55e'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } }
+        }
+    });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadReports();
+</script>
+{% endblock %}

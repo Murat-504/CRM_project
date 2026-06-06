@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Заявка #{{ req.pk }} — CRM{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'requests_app:list' %}">Заявки</a></li>
+<li class="breadcrumb-item active">{{ req.subject|truncatechars:30 }}</li>
+{% endblock %}
+{% block content %}
+<div class="card kpi-card mb-4">
+    <div class="card-body">
+        <div class="d-flex align-items-start gap-3 flex-wrap">
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="text-muted small">#{{ req.pk }}</span>
+                    <span class="badge priority-{{ req.priority }} rounded-pill">{{ req.get_priority_display }}</span>
+                    <span class="badge rounded-pill
+                        {% if req.status == 'new' %}bg-primary
+                        {% elif req.status == 'in_progress' %}bg-warning text-dark
+                        {% elif req.status == 'waiting' %}bg-info
+                        {% elif req.status == 'closed' %}bg-success
+                        {% else %}bg-secondary{% endif %}">
+                        {{ req.get_status_display }}
+                    </span>
+                    {% if req.is_overdue %}<span class="badge bg-danger">Просрочено</span>{% endif %}
+                </div>
+                <h4 class="mb-1 fw-bold">{{ req.subject }}</h4>
+                <div class="text-muted small">
+                    <i class="bi bi-person-fill me-1"></i>
+                    <a href="{% url 'clients:detail' req.client.pk %}">{{ req.client.name }}</a>
+                    {% if req.manager %}· <i class="bi bi-person-badge-fill me-1 ms-2"></i>{{ req.manager }}{% endif %}
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'requests_app:edit' req.pk %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-pencil me-1"></i>Редактировать
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-lg-8">
+        <!-- Описание -->
+        <div class="card kpi-card mb-3">
+            <div class="card-header bg-transparent fw-semibold border-0 pt-3 pb-0">Описание</div>
+            <div class="card-body">
+                {% if req.description %}
+                    {{ req.description|linebreaksbr }}
+                {% else %}
+                    <span class="text-muted">Описание не указано</span>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Комментарии -->
+        <div class="card kpi-card">
+            <div class="card-header bg-transparent fw-semibold border-0 pt-3 pb-0">
+                <i class="bi bi-chat-left-text me-1 text-info"></i>Комментарии
+            </div>
+            <div class="card-body">
+                <div id="comments-list" class="mb-3"></div>
+                <form id="commentForm">
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <select name="interaction_type" class="form-select form-select-sm">
+                                <option value="note">Заметка</option>
+                                <option value="call">Звонок</option>
+                                <option value="meeting">Встреча</option>
+                                <option value="email">E-mail</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <textarea name="text" class="form-control form-control-sm" rows="3"
+                                      placeholder="Введите комментарий…" required></textarea>
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="bi bi-send me-1"></i>Добавить
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <!-- Детали -->
+        <div class="card kpi-card mb-3">
+            <div class="card-header bg-transparent fw-semibold border-0 pt-3 pb-0">Детали</div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-6 text-muted">Тип обращения</dt>
+                    <dd class="col-6">{{ req.get_request_type_display }}</dd>
+                    <dt class="col-6 text-muted">Приоритет</dt>
+                    <dd class="col-6">{{ req.get_priority_display }}</dd>
+                    <dt class="col-6 text-muted">Срок</dt>
+                    <dd class="col-6 {% if req.is_overdue %}text-danger fw-semibold{% endif %}">
+                        {% if req.deadline %}{{ req.deadline|date:"d.m.Y H:i" }}{% else %}—{% endif %}
+                    </dd>
+                    <dt class="col-6 text-muted">Создана</dt>
+                    <dd class="col-6">{{ req.created_at|date:"d.m.Y H:i" }}</dd>
+                    {% if req.closed_at %}
+                    <dt class="col-6 text-muted">Закрыта</dt>
+                    <dd class="col-6">{{ req.closed_at|date:"d.m.Y H:i" }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+        <!-- Быстрая смена статуса -->
+        <div class="card kpi-card">
+            <div class="card-header bg-transparent fw-semibold border-0 pt-3 pb-0">Сменить статус</div>
+            <div class="card-body d-grid gap-2">
+                <button class="btn btn-outline-primary btn-sm" onclick="changeStatus('in_progress')">
+                    <i class="bi bi-play-circle me-1"></i>В работу
+                </button>
+                <button class="btn btn-outline-info btn-sm" onclick="changeStatus('waiting')">
+                    <i class="bi bi-pause-circle me-1"></i>Ожидает ответа
+                </button>
+                <button class="btn btn-outline-success btn-sm" onclick="changeStatus('closed')">
+                    <i class="bi bi-check-circle me-1"></i>Закрыть
+                </button>
+                <button class="btn btn-outline-danger btn-sm" onclick="changeStatus('rejected')">
+                    <i class="bi bi-x-circle me-1"></i>Отклонить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const REQ_ID = {{ req.pk }};
+
+async function changeStatus(status) {
+    const res = await CRM.apiFetch(`/api/requests/${REQ_ID}/status/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+    });
+    if (res.ok) {
+        CRM.showToast('Статус обновлён');
+        setTimeout(() => location.reload(), 800);
+    } else {
+        CRM.showToast('Ошибка', 'danger');
+    }
+}
+
+async function loadComments() {
+    const res = await CRM.apiFetch(`/api/requests/${REQ_ID}/comments/`);
+    const data = await res.json();
+    const typeIcon = { call: 'telephone', meeting: 'people', email: 'envelope', note: 'sticky' };
+    const html = data.length ? data.map(c => `
+        <div class="d-flex gap-2 mb-3">
+            <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0"
+                 style="width:34px;height:34px">
+                <i class="bi bi-${typeIcon[c.interaction_type] || 'chat'} text-primary" style="font-size:.85rem"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="d-flex gap-2 align-items-center mb-1">
+                    <span class="fw-semibold small">${c.author?.full_name || '—'}</span>
+                    <span class="badge bg-light text-dark" style="font-size:.65rem">${c.interaction_type_display}</span>
+                    <span class="text-muted ms-auto" style="font-size:.72rem">${new Date(c.created_at).toLocaleString('ru')}</span>
+                </div>
+                <div class="small">${c.text}</div>
+            </div>
+        </div>`).join('') : '<p class="text-muted small">Комментариев пока нет</p>';
+    document.getElementById('comments-list').innerHTML = html;
+}
+
+document.getElementById('commentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    const res = await CRM.apiFetch(`/api/requests/${REQ_ID}/comments/`, {
+        method: 'POST',
+        body: JSON.stringify({ text: fd.get('text'), interaction_type: fd.get('interaction_type') })
+    });
+    if (res.ok) { this.reset(); loadComments(); CRM.showToast('Комментарий добавлен'); }
+});
+
+loadComments();
+</script>
+{% endblock %}
